@@ -832,7 +832,50 @@
         // 终极防线：每 500ms 巡检一次地址栏（仅在 URL 发生变动时触发，0 CPU 开销）
         setInterval(() => this.restoreAddressBar(), 500);
 
-        // 代理 History API 以支持 SPA 路由拦截
+        // 代理 History API 以支持 SPA 路由拦截 (注入到 Page Context 防止被隔离环境绕过)
+        const injectHistoryPatch = () => {
+          const script = document.createElement('script');
+          script.textContent = `
+            (function() {
+              const originalPushState = window.history.pushState;
+              const originalReplaceState = window.history.replaceState;
+              const cleanUrl = (urlStr) => {
+                try {
+                  if (typeof urlStr !== 'string') return urlStr;
+                  const url = new URL(urlStr, window.location.origin);
+                  const badParams = /^(utm_|share_|spm|from_|track)|(From|_from|source)$/i;
+                  let changed = false;
+                  for (const key of Array.from(url.searchParams.keys())) {
+                    if (badParams.test(key) || key === 'spm_id_from' || key === 'vd_source') {
+                      url.searchParams.delete(key);
+                      changed = true;
+                    }
+                  }
+                  return changed ? url.href : urlStr;
+                } catch(e) { return urlStr; }
+              };
+              window.history.pushState = function(state, title, url) {
+                return originalPushState.call(this, state, title, cleanUrl(url));
+              };
+              window.history.replaceState = function(state, title, url) {
+                return originalReplaceState.call(this, state, title, cleanUrl(url));
+              };
+            })();
+          `;
+          const root = document.head || document.documentElement;
+          if (root) {
+            root.appendChild(script);
+            script.remove();
+          } else {
+            document.addEventListener('DOMContentLoaded', () => {
+              (document.head || document.documentElement).appendChild(script);
+              script.remove();
+            }, { once: true });
+          }
+        };
+        injectHistoryPatch();
+        
+        // 隔离环境内依然保留代理（兼容不依赖 page context 的调用）
         const engine = this;
         const originalPushState = window.history.pushState;
         const originalReplaceState = window.history.replaceState;
