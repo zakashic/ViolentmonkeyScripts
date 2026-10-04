@@ -2,7 +2,7 @@
 // @name               跟踪链接净化 (Clean Tracking URLs)
 // @namespace          https://github.com/zakashic/ViolentmonkeyScripts
 // @author             zakashic
-// @version            2.0.2
+// @version            2.0.6
 // @description        净化所有网站上的跟踪链接和事件 (高性能重构版，适配暴力猴 MV3 & 油猴)
 // @match              *://*/*
 // @exclude            *://*.hdslb.com/*
